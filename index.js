@@ -5,7 +5,8 @@ module.exports = function createPlugin(app) {
   const plugin = {};
   plugin.id = 'signalk-engine-hours';
   plugin.name = 'SignalK Engine Hours Logger';
-  plugin.description = 'Persistent engine hour logger. Log all engines, which report revolutions to SignalK';
+  plugin.description =
+    'Persistent engine hour logger. Log all engines, which report revolutions to SignalK';
 
   let engines = { paths: [] };
   let unsubscribes = [];
@@ -32,7 +33,9 @@ module.exports = function createPlugin(app) {
         writeTimer = null;
         if (writeDirty) {
           writeDirty = false;
-          writeToPersistentStore(engines).catch((err) => app.debug(`Write error: ${err.message}`));
+          writeToPersistentStore(engines).catch((err) =>
+            app.debug(`Write error: ${err.message}`),
+          );
         }
       }, 5000);
     }
@@ -73,20 +76,33 @@ module.exports = function createPlugin(app) {
             timestamp: logTime || new Date().toISOString(),
             values: [
               { path: `propulsion.${engineName}.runTime`, value: runTime || 0 },
-              { path: `propulsion.${engineName}.runTimeTrip`, value: runTimeTrip || 0 },
+              {
+                path: `propulsion.${engineName}.runTimeTrip`,
+                value: runTimeTrip || 0,
+              },
             ],
           },
         ],
       });
       if (!metaPublished.has(engineName)) {
-        const runTimeMeta = app.getSelfPath(`propulsion.${engineName}.runTime.meta`);
-        const runTimeTripMeta = app.getSelfPath(`propulsion.${engineName}.runTimeTrip.meta`);
+        const runTimeMeta = app.getSelfPath(
+          `propulsion.${engineName}.runTime.meta`,
+        );
+        const runTimeTripMeta = app.getSelfPath(
+          `propulsion.${engineName}.runTimeTrip.meta`,
+        );
         const metaUpdates = [];
         if (!runTimeMeta || !Object.keys(runTimeMeta).length) {
-          metaUpdates.push({ path: `propulsion.${engineName}.runTime`, value: { units: 's' } });
+          metaUpdates.push({
+            path: `propulsion.${engineName}.runTime`,
+            value: { units: 's' },
+          });
         }
         if (!runTimeTripMeta || !Object.keys(runTimeTripMeta).length) {
-          metaUpdates.push({ path: `propulsion.${engineName}.runTimeTrip`, value: { units: 's' } });
+          metaUpdates.push({
+            path: `propulsion.${engineName}.runTimeTrip`,
+            value: { units: 's' },
+          });
         }
         if (metaUpdates.length) {
           app.handleMessage(plugin.id, {
@@ -96,7 +112,9 @@ module.exports = function createPlugin(app) {
         }
         metaPublished.add(engineName);
       }
-      setImmediate(() => app.emit('connectionwrite', { providerId: plugin.id }));
+      setImmediate(() =>
+        app.emit('connectionwrite', { providerId: plugin.id }),
+      );
     }
 
     readFile(enginesFile, 'utf-8')
@@ -124,7 +142,12 @@ module.exports = function createPlugin(app) {
         app.debug(`Number of engines: ${numberEngines}`);
         app.debug(engines.paths);
         engines.paths.forEach((engine) => {
-          reportData(engine.path, engine.runTime, engine.runTimeTrip, engine.time);
+          reportData(
+            engine.path,
+            engine.runTime,
+            engine.runTimeTrip,
+            engine.time,
+          );
         });
       })
       .catch((error) => {
@@ -139,7 +162,9 @@ module.exports = function createPlugin(app) {
       context: 'vessels.self',
       subscribe: [
         {
-          path: options.monitorPath ? options.monitorPath : 'propulsion.*.revolutions',
+          path: options.monitorPath
+            ? options.monitorPath
+            : 'propulsion.*.revolutions',
           period: updateRate * 1000,
           policy: 'fixed',
         },
@@ -201,19 +226,29 @@ module.exports = function createPlugin(app) {
     });
     router.put('/hours', (req, res) => {
       const newEngines = req.body;
-      if (newEngines && Array.isArray(newEngines.paths)
-        && newEngines.paths.every((p) => typeof p.path === 'string'
-          && /^propulsion\.[a-zA-Z0-9_-]+\./.test(p.path)
-          && Number.isFinite(p.runTime) && p.runTime >= 0
-          && Number.isFinite(p.runTimeTrip) && p.runTimeTrip >= 0)) {
+      if (
+        newEngines &&
+        Array.isArray(newEngines.paths) &&
+        newEngines.paths.every(
+          (p) =>
+            typeof p.path === 'string' &&
+            /^propulsion\.[a-zA-Z0-9_-]+\./.test(p.path) &&
+            Number.isFinite(p.runTime) &&
+            p.runTime >= 0 &&
+            Number.isFinite(p.runTimeTrip) &&
+            p.runTimeTrip >= 0,
+        )
+      ) {
         engines = {
           paths: newEngines.paths.map((p) => ({
             path: p.path,
             runTime: p.runTime,
             runTimeTrip: p.runTimeTrip,
             running: p.running,
-            time: (typeof p.time === 'string' && !Number.isNaN(Date.parse(p.time)))
-              ? p.time : new Date().toISOString(),
+            time:
+              typeof p.time === 'string' && !Number.isNaN(Date.parse(p.time))
+                ? p.time
+                : new Date().toISOString(),
           })),
         };
         writeToPersistentStore(engines)
@@ -245,16 +280,14 @@ module.exports = function createPlugin(app) {
         type: 'string',
         default: 'propulsion.*.revolutions',
         title: 'Detect engine running by monitoring:',
-        enum: [
-          'propulsion.*.revolutions',
-          'propulsion.*.state',
-        ],
+        enum: ['propulsion.*.revolutions', 'propulsion.*.state'],
       },
       updateRate: {
         type: 'integer',
         default: 60,
         minimum: 1,
-        title: 'How often engine revolutions/state is monitored. Default value is 60s',
+        title:
+          'How often engine revolutions/state is monitored. Default value is 60s',
       },
     },
   };

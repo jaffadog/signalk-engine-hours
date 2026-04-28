@@ -12,13 +12,18 @@ describe('signalk-engine-hours plugin', function () {
   let errorCallback;
   let tmpDir;
   let clock;
-  const defaultOptions = { updateRate: 60, monitorPath: 'propulsion.*.revolutions' };
+  const defaultOptions = {
+    updateRate: 60,
+    monitorPath: 'propulsion.*.revolutions',
+  };
 
   function makeDelta(pathStr, value) {
     return {
-      updates: [{
-        values: [{ path: pathStr, value }],
-      }],
+      updates: [
+        {
+          values: [{ path: pathStr, value }],
+        },
+      ],
     };
   }
 
@@ -108,15 +113,20 @@ describe('signalk-engine-hours plugin', function () {
     it('should load existing engines from file on start', async function () {
       const existingData = {
         engines: {
-          paths: [{
-            path: 'propulsion.main.revolutions',
-            runTime: 3600,
-            runTimeTrip: 1800,
-            time: '2024-01-01T00:00:00.000Z',
-          }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: 3600,
+              runTimeTrip: 1800,
+              time: '2024-01-01T00:00:00.000Z',
+            },
+          ],
         },
       };
-      await fs.writeFile(path.join(tmpDir, 'engines.json'), JSON.stringify(existingData));
+      await fs.writeFile(
+        path.join(tmpDir, 'engines.json'),
+        JSON.stringify(existingData),
+      );
 
       plugin.start(defaultOptions);
       // Wait for async file read
@@ -136,7 +146,10 @@ describe('signalk-engine-hours plugin', function () {
     });
 
     it('should handle corrupted JSON in engines file', async function () {
-      await fs.writeFile(path.join(tmpDir, 'engines.json'), 'not valid json{{{');
+      await fs.writeFile(
+        path.join(tmpDir, 'engines.json'),
+        'not valid json{{{',
+      );
 
       plugin.start(defaultOptions);
       await new Promise((r) => setTimeout(r, 100));
@@ -145,7 +158,10 @@ describe('signalk-engine-hours plugin', function () {
     });
 
     it('should handle invalid data structure in engines file', async function () {
-      await fs.writeFile(path.join(tmpDir, 'engines.json'), JSON.stringify({ foo: 'bar' }));
+      await fs.writeFile(
+        path.join(tmpDir, 'engines.json'),
+        JSON.stringify({ foo: 'bar' }),
+      );
 
       plugin.start(defaultOptions);
       await new Promise((r) => setTimeout(r, 100));
@@ -154,7 +170,10 @@ describe('signalk-engine-hours plugin', function () {
     });
 
     it('should handle engines file with non-array paths', async function () {
-      await fs.writeFile(path.join(tmpDir, 'engines.json'), JSON.stringify({ engines: { paths: 'not-array' } }));
+      await fs.writeFile(
+        path.join(tmpDir, 'engines.json'),
+        JSON.stringify({ engines: { paths: 'not-array' } }),
+      );
 
       plugin.start(defaultOptions);
       await new Promise((r) => setTimeout(r, 100));
@@ -163,7 +182,10 @@ describe('signalk-engine-hours plugin', function () {
     });
 
     it('should handle engines file with empty paths array', async function () {
-      await fs.writeFile(path.join(tmpDir, 'engines.json'), JSON.stringify({ engines: { paths: [] } }));
+      await fs.writeFile(
+        path.join(tmpDir, 'engines.json'),
+        JSON.stringify({ engines: { paths: [] } }),
+      );
 
       plugin.start(defaultOptions);
       await new Promise((r) => setTimeout(r, 100));
@@ -175,15 +197,20 @@ describe('signalk-engine-hours plugin', function () {
     it('should sanitize NaN/negative values loaded from file', async function () {
       const badData = {
         engines: {
-          paths: [{
-            path: 'propulsion.main.revolutions',
-            runTime: NaN,
-            runTimeTrip: -100,
-            time: '2024-01-01T00:00:00.000Z',
-          }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: NaN,
+              runTimeTrip: -100,
+              time: '2024-01-01T00:00:00.000Z',
+            },
+          ],
         },
       };
-      await fs.writeFile(path.join(tmpDir, 'engines.json'), JSON.stringify(badData));
+      await fs.writeFile(
+        path.join(tmpDir, 'engines.json'),
+        JSON.stringify(badData),
+      );
 
       plugin.start(defaultOptions);
       await new Promise((r) => setTimeout(r, 100));
@@ -227,7 +254,8 @@ describe('signalk-engine-hours plugin', function () {
       deltaCallback(makeDelta('propulsion.main.revolutions', 0));
 
       // First delta: 60s, second delta: engine stopped, still 60s
-      const calls = app.handleMessage.getCalls()
+      const calls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].values);
       const lastMsg = calls[calls.length - 1].args[1];
       assert.equal(lastMsg.updates[0].values[0].value, 60);
@@ -236,7 +264,8 @@ describe('signalk-engine-hours plugin', function () {
     it('should still report data when value is 0 (just no accumulation)', function () {
       deltaCallback(makeDelta('propulsion.main.revolutions', 0));
 
-      const calls = app.handleMessage.getCalls()
+      const calls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].values);
       assert.equal(calls.length, 1);
       assert.equal(calls[0].args[1].updates[0].values[0].value, 0);
@@ -250,7 +279,8 @@ describe('signalk-engine-hours plugin', function () {
       deltaCallback(makeDelta('propulsion.port.state', 'stopped'));
       deltaCallback(makeDelta('propulsion.port.state', 'standby'));
 
-      const calls = app.handleMessage.getCalls()
+      const calls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].values);
       const lastMsg = calls[calls.length - 1].args[1];
       // Only the first 'started' delta should accumulate: 30s
@@ -272,7 +302,8 @@ describe('signalk-engine-hours plugin', function () {
       deltaCallback(makeDelta('propulsion.main.revolutions', 100));
       deltaCallback(makeDelta('propulsion.main.revolutions', -50));
 
-      const calls = app.handleMessage.getCalls()
+      const calls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].values);
       const lastMsg = calls[calls.length - 1].args[1];
       assert.equal(lastMsg.updates[0].values[0].value, 60);
@@ -285,14 +316,29 @@ describe('signalk-engine-hours plugin', function () {
 
       // port: 2 updates x 60s = 120s
       // starboard: 1 update x 60s = 60s
-      const calls = app.handleMessage.getCalls()
+      const calls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].values);
 
-      const portCalls = calls.filter((c) => c.args[1].updates[0].values[0].path === 'propulsion.port.runTime');
-      const starboardCalls = calls.filter((c) => c.args[1].updates[0].values[0].path === 'propulsion.starboard.runTime');
+      const portCalls = calls.filter(
+        (c) =>
+          c.args[1].updates[0].values[0].path === 'propulsion.port.runTime',
+      );
+      const starboardCalls = calls.filter(
+        (c) =>
+          c.args[1].updates[0].values[0].path ===
+          'propulsion.starboard.runTime',
+      );
 
-      assert.equal(portCalls[portCalls.length - 1].args[1].updates[0].values[0].value, 120);
-      assert.equal(starboardCalls[starboardCalls.length - 1].args[1].updates[0].values[0].value, 60);
+      assert.equal(
+        portCalls[portCalls.length - 1].args[1].updates[0].values[0].value,
+        120,
+      );
+      assert.equal(
+        starboardCalls[starboardCalls.length - 1].args[1].updates[0].values[0]
+          .value,
+        60,
+      );
     });
 
     it('should skip deltas with no updates', function () {
@@ -312,7 +358,8 @@ describe('signalk-engine-hours plugin', function () {
 
       assert.ok(app.debug.calledWithMatch(/Cannot extract engine name/));
       // handleMessage should not be called for data (meta check won't happen either)
-      const dataCalls = app.handleMessage.getCalls()
+      const dataCalls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].values);
       assert.equal(dataCalls.length, 0);
     });
@@ -322,7 +369,9 @@ describe('signalk-engine-hours plugin', function () {
 
       // connectionwrite is emitted via setImmediate, so check on next tick
       setImmediate(() => {
-        assert.ok(app.emit.calledWith('connectionwrite', { providerId: plugin.id }));
+        assert.ok(
+          app.emit.calledWith('connectionwrite', { providerId: plugin.id }),
+        );
         done();
       });
     });
@@ -345,7 +394,8 @@ describe('signalk-engine-hours plugin', function () {
     it('should publish meta with units on first report', function () {
       deltaCallback(makeDelta('propulsion.main.revolutions', 100));
 
-      const metaCalls = app.handleMessage.getCalls()
+      const metaCalls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].meta);
       assert.equal(metaCalls.length, 1);
 
@@ -361,7 +411,8 @@ describe('signalk-engine-hours plugin', function () {
       deltaCallback(makeDelta('propulsion.main.revolutions', 100));
       deltaCallback(makeDelta('propulsion.main.revolutions', 200));
 
-      const metaCalls = app.handleMessage.getCalls()
+      const metaCalls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].meta);
       assert.equal(metaCalls.length, 1);
     });
@@ -370,19 +421,23 @@ describe('signalk-engine-hours plugin', function () {
       deltaCallback(makeDelta('propulsion.port.revolutions', 100));
       deltaCallback(makeDelta('propulsion.starboard.revolutions', 100));
 
-      const metaCalls = app.handleMessage.getCalls()
+      const metaCalls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].meta);
       assert.equal(metaCalls.length, 2);
     });
 
     it('should skip meta if already present in SignalK', function () {
       app.getSelfPath
-        .withArgs('propulsion.main.runTime.meta').returns({ units: 's' })
-        .withArgs('propulsion.main.runTimeTrip.meta').returns({ units: 's' });
+        .withArgs('propulsion.main.runTime.meta')
+        .returns({ units: 's' })
+        .withArgs('propulsion.main.runTimeTrip.meta')
+        .returns({ units: 's' });
 
       deltaCallback(makeDelta('propulsion.main.revolutions', 100));
 
-      const metaCalls = app.handleMessage.getCalls()
+      const metaCalls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].meta);
       assert.equal(metaCalls.length, 0);
     });
@@ -397,7 +452,10 @@ describe('signalk-engine-hours plugin', function () {
       plugin.stop();
       await new Promise((r) => setTimeout(r, 200));
 
-      const content = await fs.readFile(path.join(tmpDir, 'engines.json'), 'utf-8');
+      const content = await fs.readFile(
+        path.join(tmpDir, 'engines.json'),
+        'utf-8',
+      );
       const data = JSON.parse(content);
       assert.ok(data.engines);
       assert.ok(data.engines.paths);
@@ -430,7 +488,10 @@ describe('signalk-engine-hours plugin', function () {
 
       // Verify the file has the final accumulated value (3 x 60 = 180),
       // proving all updates were coalesced into one write
-      const content = await fs.readFile(path.join(tmpDir, 'engines.json'), 'utf-8');
+      const content = await fs.readFile(
+        path.join(tmpDir, 'engines.json'),
+        'utf-8',
+      );
       const data = JSON.parse(content);
       assert.equal(data.engines.paths[0].runTime, 180);
     });
@@ -442,8 +503,12 @@ describe('signalk-engine-hours plugin', function () {
     beforeEach(function () {
       routes = {};
       const router = {
-        get: (p, handler) => { routes[`GET ${p}`] = handler; },
-        put: (p, handler) => { routes[`PUT ${p}`] = handler; },
+        get: (p, handler) => {
+          routes[`GET ${p}`] = handler;
+        },
+        put: (p, handler) => {
+          routes[`PUT ${p}`] = handler;
+        },
       };
       plugin.start(defaultOptions);
       plugin.registerWithRouter(router);
@@ -471,12 +536,14 @@ describe('signalk-engine-hours plugin', function () {
     it('PUT /hours should update engines with valid data', async function () {
       const req = {
         body: {
-          paths: [{
-            path: 'propulsion.main.revolutions',
-            runTime: 7200,
-            runTimeTrip: 3600,
-            time: '2024-06-01T00:00:00.000Z',
-          }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: 7200,
+              runTimeTrip: 3600,
+              time: '2024-06-01T00:00:00.000Z',
+            },
+          ],
         },
       };
       const res = {
@@ -534,7 +601,13 @@ describe('signalk-engine-hours plugin', function () {
     it('PUT /hours should reject NaN values', function () {
       const req = {
         body: {
-          paths: [{ path: 'propulsion.main.revolutions', runTime: NaN, runTimeTrip: 0 }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: NaN,
+              runTimeTrip: 0,
+            },
+          ],
         },
       };
       const res = {
@@ -548,7 +621,13 @@ describe('signalk-engine-hours plugin', function () {
     it('PUT /hours should reject negative values', function () {
       const req = {
         body: {
-          paths: [{ path: 'propulsion.main.revolutions', runTime: -100, runTimeTrip: 0 }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: -100,
+              runTimeTrip: 0,
+            },
+          ],
         },
       };
       const res = {
@@ -576,12 +655,14 @@ describe('signalk-engine-hours plugin', function () {
     it('PUT /hours should reject invalid time string', async function () {
       const req = {
         body: {
-          paths: [{
-            path: 'propulsion.main.revolutions',
-            runTime: 100,
-            runTimeTrip: 50,
-            time: 'not-a-date',
-          }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: 100,
+              runTimeTrip: 50,
+              time: 'not-a-date',
+            },
+          ],
         },
       };
       const res = {
@@ -602,12 +683,14 @@ describe('signalk-engine-hours plugin', function () {
     it('PUT /hours should sanitize input (strip extra properties)', async function () {
       const req = {
         body: {
-          paths: [{
-            path: 'propulsion.main.revolutions',
-            runTime: 100,
-            runTimeTrip: 50,
-            malicious: '<script>alert("xss")</script>',
-          }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: 100,
+              runTimeTrip: 50,
+              malicious: '<script>alert("xss")</script>',
+            },
+          ],
         },
       };
       const res = {
@@ -629,11 +712,13 @@ describe('signalk-engine-hours plugin', function () {
 
       const req = {
         body: {
-          paths: [{
-            path: 'propulsion.main.revolutions',
-            runTime: 100,
-            runTimeTrip: 50,
-          }],
+          paths: [
+            {
+              path: 'propulsion.main.revolutions',
+              runTime: 100,
+              runTimeTrip: 50,
+            },
+          ],
         },
       };
       const res = {
@@ -667,8 +752,12 @@ describe('signalk-engine-hours plugin', function () {
       // GET /hours after stop should return empty
       const localRoutes = {};
       const router = {
-        get: (p, handler) => { localRoutes[`GET ${p}`] = handler; },
-        put: (p, handler) => { localRoutes[`PUT ${p}`] = handler; },
+        get: (p, handler) => {
+          localRoutes[`GET ${p}`] = handler;
+        },
+        put: (p, handler) => {
+          localRoutes[`PUT ${p}`] = handler;
+        },
       };
       plugin.registerWithRouter(router);
       const res = { json: sinon.stub() };
@@ -683,7 +772,10 @@ describe('signalk-engine-hours plugin', function () {
       const flushed = plugin.stop();
       await flushed;
 
-      const content = await fs.readFile(path.join(tmpDir, 'engines.json'), 'utf-8');
+      const content = await fs.readFile(
+        path.join(tmpDir, 'engines.json'),
+        'utf-8',
+      );
       const data = JSON.parse(content);
       assert.equal(data.engines.paths[0].runTime, 60);
     });
@@ -698,7 +790,8 @@ describe('signalk-engine-hours plugin', function () {
       app.handleMessage.resetHistory();
       deltaCallback(makeDelta('propulsion.main.revolutions', 100));
 
-      const metaCalls = app.handleMessage.getCalls()
+      const metaCalls = app.handleMessage
+        .getCalls()
         .filter((c) => c.args[1].updates[0].meta);
       assert.equal(metaCalls.length, 1);
     });
