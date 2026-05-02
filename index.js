@@ -61,10 +61,10 @@ module.exports = function createPlugin(app) {
     const updateRate = options.updateRate || 60;
     enginesFile = join(app.getDataDirPath(), 'engines.json');
 
-    function reportData(skPath, runTime, runTimeTrip, logTime) {
-      const matches = skPath.match(/^propulsion\.([^.]+)\./);
+    function reportData(engine) {
+      const matches = engine.path.match(/^propulsion\.([^.]+)\./);
       if (!matches) {
-        app.debug(`Cannot extract engine name from path: ${skPath}`);
+        app.debug(`Cannot extract engine name from path: ${engine.path}`);
         return;
       }
       const engineName = matches[1];
@@ -73,12 +73,15 @@ module.exports = function createPlugin(app) {
         updates: [
           {
             source: { label: plugin.id },
-            timestamp: logTime || new Date().toISOString(),
+            timestamp: engine.time || new Date().toISOString(),
             values: [
-              { path: `propulsion.${engineName}.runTime`, value: runTime || 0 },
+              {
+                path: `propulsion.${engineName}.runTime`,
+                value: engine.runTime || 0,
+              },
               {
                 path: `propulsion.${engineName}.runTimeTrip`,
-                value: runTimeTrip || 0,
+                value: engine.runTimeTrip || 0,
               },
             ],
           },
@@ -142,12 +145,7 @@ module.exports = function createPlugin(app) {
         app.debug(`Number of engines: ${numberEngines}`);
         app.debug(engines.paths);
         engines.paths.forEach((engine) => {
-          reportData(
-            engine.path,
-            engine.runTime,
-            engine.runTimeTrip,
-            engine.time,
-          );
+          reportData(engine);
         });
       })
       .catch((error) => {
@@ -166,7 +164,6 @@ module.exports = function createPlugin(app) {
             ? options.monitorPath
             : 'propulsion.*.revolutions',
           period: updateRate * 1000,
-          policy: 'fixed',
         },
       ],
     };
@@ -183,37 +180,42 @@ module.exports = function createPlugin(app) {
           if (!u.values) return;
           u.values.forEach((v) => {
             let engine = engines.paths.find((item) => item.path === v.path);
-            const running = v.value > 0 || v.value === 'started';
-            const now = new Date();
 
-            // new engine
             if (!engine) {
+              app.debug('new engine');
               engine = {
                 path: v.path,
                 runTime: 0,
                 runTimeTrip: 0,
+                running: false,
               };
               engines.paths.push(engine);
             }
 
-            // stopped > stopped
-            //    do nothing
-            else if (!engine.running && !running) {
-              return;
+            const previousEngine = { ...engine };
+
+            engine.time = new Date(u.timestamp).toISOString();
+            engine.running = v.value > 0 || v.value === 'started';
+
+            if (previousEngine.running) {
+              const ellapsedSeconds =
+                (new Date(engine.time) - new Date(previousEngine.time)) / 1000;
+              engine.runTime += ellapsedSeconds;
+              engine.runTimeTrip += ellapsedSeconds;
+              app.debug('increment engine hours', {
+                ellapsedSeconds,
+              });
             }
 
-            // running > running
-            //    record ++hours
-            else if (engine.running && running) {
-              const ellapsed = (now - new Date(engine.time)) / 1000;
-              engine.runTime += ellapsed;
-              engine.runTimeTrip += ellapsed;
+            if (
+              previousEngine.running !== engine.running ||
+              previousEngine.runTime !== engine.runTime
+            ) {
+              app.debug('saving');
+              scheduleDebouncedWrite();
             }
 
-            engine.running = running;
-            engine.time = now.toISOString();
-            scheduleDebouncedWrite();
-            reportData(v.path, engine.runTime, engine.runTimeTrip, engine.time);
+            reportData(engine);
           });
         });
       },
