@@ -14,6 +14,6 @@ Signal K engine hours logger keep logged data stored. Engines which reports revo
 - v0.4.0 tooltip to show hrs:min
 - v1.0.0 1st release
 - v1.1.0 fix: improve error handling and validation for engine data
-- v1.2.0 feat: option to monitor propulsion.\*.state
+- v1.2.0 feat: option to monitor propulsion.*.state
 - v1.3.0 new UI and fixes to code
 - v1.3.1 chroe: clean-up

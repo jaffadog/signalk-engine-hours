@@ -194,12 +194,17 @@ module.exports = function createPlugin(app) {
 
             const previousEngine = { ...engine };
 
-            engine.time = new Date(u.timestamp).toISOString();
+            const tsMs = u.timestamp ? Date.parse(u.timestamp) : NaN;
+            engine.time = Number.isFinite(tsMs)
+              ? new Date(tsMs).toISOString()
+              : new Date().toISOString();
             engine.running = v.value > 0 || v.value === 'started';
 
-            if (previousEngine.running) {
-              const ellapsedSeconds =
-                (new Date(engine.time) - new Date(previousEngine.time)) / 1000;
+            if (previousEngine.running && previousEngine.time) {
+              const ellapsedSeconds = Math.max(
+                0,
+                (new Date(engine.time) - new Date(previousEngine.time)) / 1000,
+              );
               engine.runTime += ellapsedSeconds;
               engine.runTimeTrip += ellapsedSeconds;
               app.debug('increment engine hours', {
